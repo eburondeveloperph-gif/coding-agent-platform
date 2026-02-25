@@ -2,8 +2,6 @@
 
 Eburon AI is a multi-agent coding platform that supports Claude Code, OpenAI's Codex CLI, GitHub Copilot CLI, Cursor CLI, Google Gemini CLI, and opencode with [Orbit Sandbox](https://eburon.ai) to automatically execute coding tasks on your repositories.
 
-![Eburon AI Screenshot](screenshot.png)
-
 ## Deploy Your Own
 
 You can deploy your own Eburon AI instance to Vercel:
