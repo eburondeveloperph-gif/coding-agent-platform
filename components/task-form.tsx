@@ -297,6 +297,7 @@ export function TaskForm({
             cursor: 'Cursor',
             gemini: 'Gemini',
             aigateway: 'AI Gateway',
+            ollama: 'Ollama',
           }
           const providerName = providerNames[data.provider] || data.provider
 

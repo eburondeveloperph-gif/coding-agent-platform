@@ -13,7 +13,7 @@ export type OpenMaxAgent =
   | 'copilot'
   | 'cursor'
 
-export type ProviderRequirement = 'openai' | 'gemini' | 'cursor' | 'anthropic' | 'aigateway'
+export type ProviderRequirement = 'openai' | 'gemini' | 'cursor' | 'anthropic' | 'aigateway' | 'ollama'
 
 export type RoutingTag = 'claw_actions' | 'quick_codegen' | 'local_repo_work' | 'local_code_review' | 'default'
 
@@ -260,7 +260,10 @@ export function getRequiredProvidersForAgent(agent?: string | null, model?: stri
   const normalized = canonicalizeStoredAgent(agent)
 
   if (normalized === 'codemax' || normalized === 'codex') {
-    return ['aigateway']
+    const selectedModel = model || getDefaultModelForAgent(normalized)
+    const modelLower = selectedModel.toLowerCase()
+    const isCloudModel = modelLower.endsWith(':cloud') || modelLower.endsWith('-cloud') || modelLower === 'openmax'
+    return isCloudModel ? ['ollama'] : ['aigateway']
   }
   if (normalized === 'terminal' || normalized === 'gemini') {
     return ['gemini']

@@ -132,6 +132,7 @@ async function continueTask(
     CURSOR_API_KEY?: string
     ANTHROPIC_API_KEY?: string
     AI_GATEWAY_API_KEY?: string
+    OLLAMA_API_KEY?: string
   },
   githubToken?: string | null,
   githubUser?: {

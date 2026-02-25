@@ -13,9 +13,10 @@ interface ApiKeysDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-type Provider = 'openai' | 'gemini' | 'cursor' | 'anthropic' | 'aigateway'
+type Provider = 'openai' | 'gemini' | 'cursor' | 'anthropic' | 'aigateway' | 'ollama'
 
 const PROVIDERS = [
+  { id: 'ollama' as Provider, name: 'Ollama', placeholder: 'ollama_...' },
   { id: 'aigateway' as Provider, name: 'AI Gateway', placeholder: 'gw_...' },
   { id: 'anthropic' as Provider, name: 'Anthropic', placeholder: 'sk-ant-...' },
   { id: 'openai' as Provider, name: 'eburonmax', placeholder: 'sk-...' },
@@ -25,6 +26,7 @@ const PROVIDERS = [
 
 export function ApiKeysDialog({ open, onOpenChange }: ApiKeysDialogProps) {
   const [apiKeys, setApiKeys] = useState<Record<Provider, string>>({
+    ollama: '',
     openai: '',
     gemini: '',
     cursor: '',
@@ -34,6 +36,7 @@ export function ApiKeysDialog({ open, onOpenChange }: ApiKeysDialogProps) {
   const [savedKeys, setSavedKeys] = useState<Set<Provider>>(new Set())
   const [clearedKeys, setClearedKeys] = useState<Set<Provider>>(new Set())
   const [showKeys, setShowKeys] = useState<Record<Provider, boolean>>({
+    ollama: false,
     openai: false,
     gemini: false,
     cursor: false,

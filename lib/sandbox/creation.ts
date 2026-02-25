@@ -580,27 +580,8 @@ fi
           await logger.info('Chromium downloaded successfully for agent-browser')
         }
 
-        // Create the agent-browser skill file based on the selected agent
-        await logger.info('Creating agent-browser skill for Eburon AI agent...')
-
-        const selectedAgent = (config.selectedAgent || 'codemax').toLowerCase()
-        let agentType = selectedAgent
-
-        if (selectedAgent === 'codemax') {
-          agentType = 'codex'
-        } else if (selectedAgent === 'terminal') {
-          agentType = 'gemini'
-        } else if (selectedAgent === 'orbit') {
-          agentType = 'claude'
-        } else if (selectedAgent === 'echo') {
-          agentType = 'opencode'
-        } else if (selectedAgent === 'vision') {
-          agentType = 'claude'
-        } else if (selectedAgent === 'opencode_local') {
-          agentType = 'opencode'
-        } else if (selectedAgent === 'claudecode_local') {
-          agentType = 'claude'
-        }
+        // Create agent-browser skill files for all supported agents.
+        await logger.info('Creating agent-browser skill files...')
 
         // Skill content with YAML front matter (Claude format)
         const claudeSkillContent = `---
@@ -707,36 +688,39 @@ Key commands: open, snapshot -i, click, fill, type, press, get text/value/title/
 
         let skillInstalled = false
 
-        if (agentType === 'claude') {
-          // Claude: Use .claude/skills directory
-          const skillDir = '/home/vercel-sandbox/.claude/skills/agent-browser'
-          const createSkillDir = await runCommandInSandbox(sandbox, 'mkdir', ['-p', skillDir])
-          if (createSkillDir.success) {
-            const writeSkillCmd = `cat > ${skillDir}/SKILL.md << 'SKILL_EOF'
+        // Claude: Use .claude/skills directory
+        const claudeSkillDir = '/home/vercel-sandbox/.claude/skills/agent-browser'
+        const createClaudeSkillDir = await runCommandInSandbox(sandbox, 'mkdir', ['-p', claudeSkillDir])
+        if (createClaudeSkillDir.success) {
+          const writeClaudeSkillCmd = `cat > ${claudeSkillDir}/SKILL.md << 'SKILL_EOF'
 ${claudeSkillContent}
 SKILL_EOF`
-            const writeSkill = await runCommandInSandbox(sandbox, 'sh', ['-c', writeSkillCmd])
-            skillInstalled = writeSkill.success
+          const writeClaudeSkill = await runCommandInSandbox(sandbox, 'sh', ['-c', writeClaudeSkillCmd])
+          if (writeClaudeSkill.success) {
+            skillInstalled = true
           }
-        } else if (agentType === 'gemini') {
-          // Gemini: Use .gemini directory with AGENTS.md
-          const geminiDir = '/home/vercel-sandbox/.gemini'
-          const createDir = await runCommandInSandbox(sandbox, 'mkdir', ['-p', geminiDir])
-          if (createDir.success) {
-            const writeCmd = `cat > ${geminiDir}/AGENTS.md << 'SKILL_EOF'
+        }
+
+        // Gemini: Use .gemini directory with AGENTS.md
+        const geminiDir = '/home/vercel-sandbox/.gemini'
+        const createGeminiDir = await runCommandInSandbox(sandbox, 'mkdir', ['-p', geminiDir])
+        if (createGeminiDir.success) {
+          const writeGeminiCmd = `cat > ${geminiDir}/AGENTS.md << 'SKILL_EOF'
 # Browser Automation Skill
 
 ${genericInstructions}
 SKILL_EOF`
-            const writeSkill = await runCommandInSandbox(sandbox, 'sh', ['-c', writeCmd])
-            skillInstalled = writeSkill.success
+          const writeGeminiSkill = await runCommandInSandbox(sandbox, 'sh', ['-c', writeGeminiCmd])
+          if (writeGeminiSkill.success) {
+            skillInstalled = true
           }
-        } else if (agentType === 'cursor') {
-          // Cursor: Use .cursor/rules directory
-          const cursorDir = '/home/vercel-sandbox/.cursor/rules'
-          const createDir = await runCommandInSandbox(sandbox, 'mkdir', ['-p', cursorDir])
-          if (createDir.success) {
-            const writeCmd = `cat > ${cursorDir}/agent-browser.mdc << 'SKILL_EOF'
+        }
+
+        // Cursor: Use .cursor/rules directory
+        const cursorDir = '/home/vercel-sandbox/.cursor/rules'
+        const createCursorDir = await runCommandInSandbox(sandbox, 'mkdir', ['-p', cursorDir])
+        if (createCursorDir.success) {
+          const writeCursorCmd = `cat > ${cursorDir}/agent-browser.mdc << 'SKILL_EOF'
 ---
 description: Browser automation with agent-browser CLI
 globs: ["**/*"]
@@ -745,40 +729,36 @@ alwaysApply: true
 
 ${genericInstructions}
 SKILL_EOF`
-            const writeSkill = await runCommandInSandbox(sandbox, 'sh', ['-c', writeCmd])
-            skillInstalled = writeSkill.success
+          const writeCursorSkill = await runCommandInSandbox(sandbox, 'sh', ['-c', writeCursorCmd])
+          if (writeCursorSkill.success) {
+            skillInstalled = true
           }
-        } else if (agentType === 'codex') {
-          // Codex: Use AGENTS.md in home directory
-          const writeCmd = `cat > /home/vercel-sandbox/AGENTS.md << 'SKILL_EOF'
+        }
+
+        // Codex/OpenCode: Use AGENTS.md in home directory
+        const writeCodexCmd = `cat > /home/vercel-sandbox/AGENTS.md << 'SKILL_EOF'
 # Browser Automation
 
 ${genericInstructions}
 SKILL_EOF`
-          const writeSkill = await runCommandInSandbox(sandbox, 'sh', ['-c', writeCmd])
-          skillInstalled = writeSkill.success
-        } else if (agentType === 'copilot') {
-          // Copilot: Use .github/copilot-instructions.md
-          const ghDir = '/home/vercel-sandbox/.github'
-          const createDir = await runCommandInSandbox(sandbox, 'mkdir', ['-p', ghDir])
-          if (createDir.success) {
-            const writeCmd = `cat > ${ghDir}/copilot-instructions.md << 'SKILL_EOF'
+        const writeCodexSkill = await runCommandInSandbox(sandbox, 'sh', ['-c', writeCodexCmd])
+        if (writeCodexSkill.success) {
+          skillInstalled = true
+        }
+
+        // Copilot: Use .github/copilot-instructions.md
+        const githubInstructionsDir = '/home/vercel-sandbox/.github'
+        const createGithubInstructionsDir = await runCommandInSandbox(sandbox, 'mkdir', ['-p', githubInstructionsDir])
+        if (createGithubInstructionsDir.success) {
+          const writeCopilotCmd = `cat > ${githubInstructionsDir}/copilot-instructions.md << 'SKILL_EOF'
 # Browser Automation
 
 ${genericInstructions}
 SKILL_EOF`
-            const writeSkill = await runCommandInSandbox(sandbox, 'sh', ['-c', writeCmd])
-            skillInstalled = writeSkill.success
+          const writeCopilotSkill = await runCommandInSandbox(sandbox, 'sh', ['-c', writeCopilotCmd])
+          if (writeCopilotSkill.success) {
+            skillInstalled = true
           }
-        } else if (agentType === 'opencode') {
-          // OpenCode: Use AGENTS.md in home directory
-          const writeCmd = `cat > /home/vercel-sandbox/AGENTS.md << 'SKILL_EOF'
-# Browser Automation
-
-${genericInstructions}
-SKILL_EOF`
-          const writeSkill = await runCommandInSandbox(sandbox, 'sh', ['-c', writeCmd])
-          skillInstalled = writeSkill.success
         }
 
         if (skillInstalled) {

@@ -32,17 +32,16 @@ export function validateEnvironmentVariables(
     CURSOR_API_KEY?: string
     ANTHROPIC_API_KEY?: string
     AI_GATEWAY_API_KEY?: string
+    OLLAMA_API_KEY?: string
   },
 ) {
   const errors: string[] = []
   const normalizedAgent = selectedAgent.toLowerCase()
+  const hasAiGateway = !!(apiKeys?.AI_GATEWAY_API_KEY || process.env.AI_GATEWAY_API_KEY)
+  const hasOllama = !!(apiKeys?.OLLAMA_API_KEY || process.env.OLLAMA_API_KEY)
 
   // Check for required environment variables based on selected agent
-  if (
-    (normalizedAgent === 'claude' || normalizedAgent === 'orbit') &&
-    !apiKeys?.AI_GATEWAY_API_KEY &&
-    !process.env.AI_GATEWAY_API_KEY
-  ) {
+  if ((normalizedAgent === 'claude' || normalizedAgent === 'orbit') && !hasAiGateway) {
     errors.push('AI_GATEWAY_API_KEY is required for Claude CLI. Please add your API key in your profile.')
   }
 
@@ -50,12 +49,10 @@ export function validateEnvironmentVariables(
     errors.push('CURSOR_API_KEY is required for Cursor CLI. Please add your API key in your profile.')
   }
 
-  if (
-    (normalizedAgent === 'codex' || normalizedAgent === 'codemax') &&
-    !apiKeys?.AI_GATEWAY_API_KEY &&
-    !process.env.AI_GATEWAY_API_KEY
-  ) {
-    errors.push('AI_GATEWAY_API_KEY is required for Codex CLI. Please add your API key in your profile.')
+  if ((normalizedAgent === 'codex' || normalizedAgent === 'codemax') && !hasAiGateway && !hasOllama) {
+    errors.push(
+      'Either OLLAMA_API_KEY or AI_GATEWAY_API_KEY is required for Codex CLI. Please add your API key in your profile.',
+    )
   }
 
   if (
@@ -69,7 +66,6 @@ export function validateEnvironmentVariables(
   if (normalizedAgent === 'opencode') {
     // OpenCode can use either AI Gateway (for GPT models) or Anthropic (for Claude models)
     // We require at least one to be present
-    const hasAiGateway = apiKeys?.AI_GATEWAY_API_KEY || process.env.AI_GATEWAY_API_KEY
     const hasAnthropic = apiKeys?.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY
 
     if (!hasAiGateway && !hasAnthropic) {

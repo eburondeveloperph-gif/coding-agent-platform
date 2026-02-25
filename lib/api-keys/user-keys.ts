@@ -6,7 +6,7 @@ import { eq, and } from 'drizzle-orm'
 import { getServerSession } from '@/lib/session/get-server-session'
 import { decrypt } from '@/lib/crypto'
 
-type Provider = 'openai' | 'gemini' | 'cursor' | 'anthropic' | 'aigateway'
+type Provider = 'openai' | 'gemini' | 'cursor' | 'anthropic' | 'aigateway' | 'ollama'
 
 /**
  * Get API keys for the currently authenticated user
@@ -18,6 +18,7 @@ export async function getUserApiKeys(): Promise<{
   CURSOR_API_KEY: string | undefined
   ANTHROPIC_API_KEY: string | undefined
   AI_GATEWAY_API_KEY: string | undefined
+  OLLAMA_API_KEY: string | undefined
 }> {
   const session = await getServerSession()
 
@@ -28,9 +29,13 @@ export async function getUserApiKeys(): Promise<{
     CURSOR_API_KEY: process.env.CURSOR_API_KEY,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
+    OLLAMA_API_KEY: process.env.OLLAMA_API_KEY,
   }
 
   if (!session?.user?.id) {
+    if (!apiKeys.OLLAMA_API_KEY) {
+      apiKeys.OLLAMA_API_KEY = apiKeys.AI_GATEWAY_API_KEY
+    }
     return apiKeys
   }
 
@@ -56,11 +61,18 @@ export async function getUserApiKeys(): Promise<{
         case 'aigateway':
           apiKeys.AI_GATEWAY_API_KEY = decryptedValue
           break
+        case 'ollama':
+          apiKeys.OLLAMA_API_KEY = decryptedValue
+          break
       }
     })
   } catch (error) {
     console.error('Error fetching user API keys:', error)
     // Fall back to system keys on error
+  }
+
+  if (!apiKeys.OLLAMA_API_KEY) {
+    apiKeys.OLLAMA_API_KEY = apiKeys.AI_GATEWAY_API_KEY
   }
 
   return apiKeys
@@ -80,6 +92,7 @@ export async function getUserApiKey(provider: Provider): Promise<string | undefi
     cursor: process.env.CURSOR_API_KEY,
     anthropic: process.env.ANTHROPIC_API_KEY,
     aigateway: process.env.AI_GATEWAY_API_KEY,
+    ollama: process.env.OLLAMA_API_KEY || process.env.AI_GATEWAY_API_KEY,
   }
 
   if (!session?.user?.id) {
@@ -95,6 +108,18 @@ export async function getUserApiKey(provider: Provider): Promise<string | undefi
 
     if (userKey[0]?.value) {
       return decrypt(userKey[0].value)
+    }
+
+    if (provider === 'ollama') {
+      const fallbackUserKey = await db
+        .select({ value: keys.value })
+        .from(keys)
+        .where(and(eq(keys.userId, session.user.id), eq(keys.provider, 'aigateway')))
+        .limit(1)
+
+      if (fallbackUserKey[0]?.value) {
+        return decrypt(fallbackUserKey[0].value)
+      }
     }
   } catch (error) {
     console.error('Error fetching user API key:', error)

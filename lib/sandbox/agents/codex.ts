@@ -7,12 +7,12 @@ import { connectors } from '@/lib/db/schema'
 
 type Connector = typeof connectors.$inferSelect
 
-const CLOUD_MODEL_SUFFIX = ':cloud'
+const CLOUD_MODEL_SUFFIXES = [':cloud', '-cloud']
 const LOCALHOST_HOSTNAMES = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1'])
 
 function isCloudModel(model: string): boolean {
   const normalized = model.trim().toLowerCase()
-  return normalized.endsWith(CLOUD_MODEL_SUFFIX) || normalized === 'openmax'
+  return CLOUD_MODEL_SUFFIXES.some((suffix) => normalized.endsWith(suffix)) || normalized === 'openmax'
 }
 
 function normalizeCloudModel(model: string): string {
@@ -28,6 +28,15 @@ function isLocalhostBaseUrl(baseUrl: string): boolean {
   try {
     const parsed = new URL(baseUrl)
     return LOCALHOST_HOSTNAMES.has(parsed.hostname.toLowerCase())
+  } catch {
+    return false
+  }
+}
+
+function isV1BaseUrl(baseUrl: string): boolean {
+  try {
+    const parsed = new URL(baseUrl)
+    return parsed.pathname.replace(/\/+$/g, '') === '/v1'
   } catch {
     return false
   }
@@ -106,24 +115,19 @@ export async function executeCodexInSandbox(
     const isCloudBackedModel = isCloudModel(selectedModelToUse)
     const modelToUse = isCloudBackedModel ? normalizeCloudModel(selectedModelToUse) : selectedModelToUse
 
-    // Set up authentication - we'll use API key method since we're in a sandbox
-    if (!process.env.AI_GATEWAY_API_KEY) {
-      return {
-        success: false,
-        error: 'AI Gateway API key not found. Please set AI_GATEWAY_API_KEY environment variable.',
-        cliName: 'codex',
-        changesDetected: false,
-      }
-    }
-
-    const apiKey = process.env.AI_GATEWAY_API_KEY.trim()
+    // Set up authentication - cloud models use Ollama key, non-cloud models use AI Gateway.
+    const aiGatewayApiKey = process.env.AI_GATEWAY_API_KEY?.trim()
+    const ollamaApiKey = process.env.OLLAMA_API_KEY?.trim()
+    const apiKey = isCloudBackedModel ? ollamaApiKey || aiGatewayApiKey : aiGatewayApiKey
     const isVercelKey = apiKey?.startsWith('vck_')
 
     if (!apiKey) {
-      await logger.error('AI Gateway API key not found')
+      await logger.error('Codex API key not found')
       return {
         success: false,
-        error: 'AI Gateway API key not found. Please set AI_GATEWAY_API_KEY environment variable.',
+        error: isCloudBackedModel
+          ? 'Ollama API key not found. Please set OLLAMA_API_KEY environment variable.'
+          : 'AI Gateway API key not found. Please set AI_GATEWAY_API_KEY environment variable.',
         cliName: 'codex',
         changesDetected: false,
       }
@@ -185,12 +189,10 @@ wire_api = "chat"
 [debug]
 log_requests = true
 `
-    } else {
-      // For non-Vercel keys we use OpenAI-compatible configuration.
-      // Cloud-backed models must use CLOUD_MODEL_BASE_URL.
+    } else if (isCloudBackedModel) {
       const cloudModelBaseUrl = process.env.CLOUD_MODEL_BASE_URL?.trim()
 
-      if (isCloudBackedModel && !cloudModelBaseUrl) {
+      if (!cloudModelBaseUrl) {
         return {
           success: false,
           error:
@@ -200,12 +202,17 @@ log_requests = true
         }
       }
 
-      if (
-        process.env.NODE_ENV === 'production' &&
-        isCloudBackedModel &&
-        cloudModelBaseUrl &&
-        isLocalhostBaseUrl(cloudModelBaseUrl)
-      ) {
+      if (!isV1BaseUrl(cloudModelBaseUrl)) {
+        return {
+          success: false,
+          error:
+            'CLOUD_MODEL_BASE_URL must end with /v1 for cloud models. Please set it to your Ollama cloud OpenAI-compatible /v1 endpoint.',
+          cliName: 'codex',
+          changesDetected: false,
+        }
+      }
+
+      if (process.env.NODE_ENV === 'production' && isLocalhostBaseUrl(cloudModelBaseUrl)) {
         return {
           success: false,
           error:
@@ -215,18 +222,30 @@ log_requests = true
         }
       }
 
-      const openAIBaseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
-      const baseUrl = isCloudBackedModel ? cloudModelBaseUrl! : openAIBaseUrl
-      const wireApi = isCloudBackedModel ? 'chat' : 'responses'
+      configToml = `model = "${modelToUse}"
+model_provider = "ollama"
 
+[model_providers.ollama]
+name = "Ollama"
+base_url = "${cloudModelBaseUrl}"
+env_key = "OLLAMA_API_KEY"
+wire_api = "chat"
+
+# Debug settings
+[debug]
+log_requests = true
+`
+    } else {
+      // For non-Vercel non-cloud keys we use OpenAI-compatible configuration.
+      const openAIBaseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
       configToml = `model = "${modelToUse}"
 model_provider = "openai"
 
 [model_providers.openai]
 name = "OpenAI"
-base_url = "${baseUrl}"
+base_url = "${openAIBaseUrl}"
 env_key = "AI_GATEWAY_API_KEY"
-wire_api = "${wireApi}"
+wire_api = "responses"
 
 # Debug settings
 [debug]
@@ -331,13 +350,14 @@ url = "${server.baseUrl}"
     // The model is now configured in config.toml, so we can use it directly
     // Use --dangerously-bypass-approvals-and-sandbox (no --cd flag like other agents)
     // If resuming, use 'codex resume' instead of 'codex exec'
-    let codexCommand = 'codex exec --dangerously-bypass-approvals-and-sandbox'
+    const codexCliPrefix = isCloudBackedModel ? 'codex --oss' : 'codex'
+    let codexCommand = `${codexCliPrefix} exec --dangerously-bypass-approvals-and-sandbox`
 
     if (isResumed) {
       // Use resume command instead of exec
       // Note: codex resume doesn't take session ID as an argument, it uses a picker or --last
       // For now, we'll use --last to continue the most recent session
-      codexCommand = 'codex resume --last'
+      codexCommand = `${codexCliPrefix} resume --last`
       if (logger) {
         await logger.info('Resuming previous Codex conversation')
       }
@@ -353,7 +373,13 @@ url = "${server.baseUrl}"
 
     // Use the same pattern as other working agents (Claude, etc.)
     // Execute with environment variables using sh -c like Claude does
-    const envPrefix = `AI_GATEWAY_API_KEY="${process.env.AI_GATEWAY_API_KEY}" HOME="/home/vercel-sandbox" CI="true"`
+    const envVars = [
+      `AI_GATEWAY_API_KEY="${aiGatewayApiKey || ''}"`,
+      `OLLAMA_API_KEY="${ollamaApiKey || apiKey}"`,
+      'HOME="/home/vercel-sandbox"',
+      'CI="true"',
+    ]
+    const envPrefix = envVars.join(' ')
     const fullCommand = `${envPrefix} ${codexCommand} "${instruction}"`
 
     // Use the standard runInProject helper like other agents

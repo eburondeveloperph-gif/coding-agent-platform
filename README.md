@@ -242,10 +242,12 @@ NEXT_PUBLIC_AUTH_PROVIDERS=github,vercel
 These API keys can be set globally (fallback for all users) or left unset to require users to provide their own:
 
 - `ANTHROPIC_API_KEY`: Anthropic API key for Claude agent (users can override in their profile)
-- `AI_GATEWAY_API_KEY`: AI Gateway API key for branch name generation and Codex (users can override)
+- `AI_GATEWAY_API_KEY`: AI Gateway API key for branch name generation and non-cloud Codex/OpenCode usage (users can override)
+- `OLLAMA_API_KEY`: Ollama API key for Codex cloud-model usage (users can override)
 - `CURSOR_API_KEY`: For Cursor agent support (users can override)
 - `GEMINI_API_KEY`: For Google Gemini agent support (users can override)
 - `OPENAI_API_KEY`: For Codex and OpenCode agents (users can override)
+- `CLOUD_MODEL_BASE_URL`: Ollama cloud OpenAI-compatible endpoint for Codex cloud models (must end with `/v1`, for example `https://ollama.com/v1`)
 
 > **Note**: Users can provide their own API keys in their profile settings, which take precedence over global environment variables.
 
