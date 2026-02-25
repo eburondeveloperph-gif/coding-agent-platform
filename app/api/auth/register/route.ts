@@ -11,8 +11,14 @@ import { createLocalSession } from '@/lib/session/create-local'
 const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(128),
-  username: z.string().trim().min(2).max(50).optional(),
-  name: z.string().trim().min(2).max(80).optional(),
+  username: z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    z.string().trim().min(2).max(50).optional(),
+  ),
+  name: z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    z.string().trim().min(2).max(80).optional(),
+  ),
 })
 
 function normalizeEmail(email: string): string {

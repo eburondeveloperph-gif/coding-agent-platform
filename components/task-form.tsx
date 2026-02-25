@@ -28,6 +28,7 @@ import { githubReposAtomFamily } from '@/lib/atoms/github-cache'
 import { useSearchParams } from 'next/navigation'
 import { canonicalizeStoredAgent, getDefaultModelForAgent, getModelsForAgent } from '@/lib/openmax/agents'
 import { BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand'
+import Image from 'next/image'
 
 interface GitHubRepo {
   name: string
@@ -328,6 +329,16 @@ export function TaskForm({
   return (
     <div className="w-full max-w-2xl">
       <div className="text-center mb-8">
+        <div className="mx-auto mb-6 h-[300px] w-[300px] max-h-[70vw] max-w-[70vw] overflow-hidden rounded-full border border-border/50">
+          <Image
+            src="/apple-touch-icon.png"
+            alt={`${BRAND_NAME} logo`}
+            width={300}
+            height={300}
+            priority
+            className="h-full w-full object-cover"
+          />
+        </div>
         <h1 className="text-4xl font-bold mb-4">{BRAND_NAME}</h1>
         <p className="text-lg text-muted-foreground mb-2">
           {BRAND_TAGLINE} powered by{' '}

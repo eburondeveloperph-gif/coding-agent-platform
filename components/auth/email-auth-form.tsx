@@ -47,7 +47,9 @@ export function EmailAuthForm({ onSuccess }: EmailAuthFormProps) {
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    if (!loginEmail.trim() || !loginPassword) {
+    const normalizedLoginEmail = loginEmail.trim()
+
+    if (!normalizedLoginEmail || !loginPassword) {
       toast.error('Email and password are required')
       return
     }
@@ -55,7 +57,7 @@ export function EmailAuthForm({ onSuccess }: EmailAuthFormProps) {
     setIsLoggingIn(true)
     try {
       await submitAuth('/api/auth/login', {
-        email: loginEmail,
+        email: normalizedLoginEmail,
         password: loginPassword,
       })
       toast.success('Logged in successfully')
@@ -70,7 +72,11 @@ export function EmailAuthForm({ onSuccess }: EmailAuthFormProps) {
   const handleRegister = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    if (!registerEmail.trim() || !registerPassword) {
+    const normalizedRegisterEmail = registerEmail.trim()
+    const normalizedRegisterUsername = registerUsername.trim()
+    const normalizedRegisterName = registerName.trim()
+
+    if (!normalizedRegisterEmail || !registerPassword) {
       toast.error('Email and password are required')
       return
     }
@@ -87,11 +93,21 @@ export function EmailAuthForm({ onSuccess }: EmailAuthFormProps) {
 
     setIsRegistering(true)
     try {
-      await submitAuth('/api/auth/register', {
-        email: registerEmail,
+      const payload: Record<string, string> = {
+        email: normalizedRegisterEmail,
         password: registerPassword,
-        username: registerUsername,
-        name: registerName,
+      }
+
+      if (normalizedRegisterUsername) {
+        payload.username = normalizedRegisterUsername
+      }
+
+      if (normalizedRegisterName) {
+        payload.name = normalizedRegisterName
+      }
+
+      await submitAuth('/api/auth/register', {
+        ...payload,
       })
       toast.success('Account created successfully')
       finishAuth()
