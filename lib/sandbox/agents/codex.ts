@@ -194,7 +194,7 @@ log_requests = true
         return {
           success: false,
           error:
-            'CLOUD_MODEL_BASE_URL is required for cloud models. Please set it to your Olyama cloud OpenAI-compatible /v1 endpoint.',
+            'CLOUD_MODEL_BASE_URL is required for cloud models. Please set it to your Ollama cloud OpenAI-compatible /v1 endpoint.',
           cliName: 'codex',
           changesDetected: false,
         }
@@ -209,7 +209,7 @@ log_requests = true
         return {
           success: false,
           error:
-            'CLOUD_MODEL_BASE_URL points to localhost in production. Set it to your Olyama cloud OpenAI-compatible /v1 endpoint.',
+            'CLOUD_MODEL_BASE_URL points to localhost in production. Set it to your Ollama cloud OpenAI-compatible /v1 endpoint.',
           cliName: 'codex',
           changesDetected: false,
         }

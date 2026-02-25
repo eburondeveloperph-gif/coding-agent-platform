@@ -199,6 +199,7 @@ These are set once by you (the app developer) and are used for core infrastructu
 - `ENCRYPTION_KEY`: 32-byte hex string for encrypting user API keys and tokens (generate with: `openssl rand -hex 32`)
 
 > **Note**: When deploying to Vercel using the "Deploy with Vercel" button, the database is automatically provisioned via Neon and `POSTGRES_URL` is set for you. For local development, you'll need to provide your own database connection string.
+> **Sandbox bootstrap**: After setting `SANDBOX_VERCEL_TOKEN` (or `VERCEL_TOKEN`) in `.env.production`, run `pnpm sandbox:bootstrap` to auto-create/reuse a sandbox project and populate `SANDBOX_VERCEL_TEAM_ID` + `SANDBOX_VERCEL_PROJECT_ID`.
 
 #### User Authentication (Required)
 
@@ -250,13 +251,14 @@ These API keys can be set globally (fallback for all users) or left unset to req
 
 #### GitHub Repository Access
 
-- ~~`GITHUB_TOKEN`~~: **No longer needed!** Users authenticate with their own GitHub accounts.
-  - Users who sign in with GitHub automatically get repository access via their OAuth token
-  - Users who sign in with Vercel can connect their GitHub account from their profile to access repositories
+- `GITHUB_TOKEN` / `GH_TOKEN` (optional fallback): Shared server-side token used only when a user does not have a connected GitHub OAuth token.
+  - Recommended: users authenticate/connect GitHub so each request uses their own token
+  - Fallback mode: if no user token is available, server routes can use `GITHUB_TOKEN` or `GH_TOKEN`
 
 **How Authentication Works:**
 - **Sign in with GitHub**: Users get immediate repository access via their GitHub OAuth token
 - **Sign in with Vercel**: Users must connect a GitHub account from their profile to work with repositories
+- **Fallback token (optional)**: If configured, `GITHUB_TOKEN`/`GH_TOKEN` can be used when no user token exists
 - **Identity Merging**: If a user signs in with Vercel, connects GitHub, then later signs in directly with GitHub, they'll be recognized as the same user (no duplicate accounts)
 
 #### Optional Environment Variables
@@ -402,7 +404,7 @@ This release introduces **user authentication** and **major security improvement
    - All API endpoints now require authentication
    - Task creation requires `userId` in request body
    - Tasks are now filtered by user ownership
-   - GitHub API access uses user's own GitHub token (no shared token fallback)
+   - GitHub API access prefers the user's own GitHub token, with optional shared fallback
 
 3. **Environment Variables**
    - **New Required Variables:**
@@ -415,9 +417,9 @@ This release introduces **user authentication** and **major security improvement
      - Vercel: `NEXT_PUBLIC_VERCEL_CLIENT_ID`, `VERCEL_CLIENT_SECRET`
    
    - **Changed Authentication:**
-     - `GITHUB_TOKEN` no longer used as fallback in API routes
-     - Users must connect their own GitHub account for repository access
-     - Each user's GitHub token is used for their requests
+     - User GitHub OAuth tokens are preferred for repository access
+     - Optional fallback: `GITHUB_TOKEN` / `GH_TOKEN` can be used when no user token exists
+     - Each user's GitHub token is still used when available
 
 4. **Authentication Required**
    - All routes now require user authentication
@@ -545,7 +547,7 @@ Confirm that:
 - Users can only see their own tasks
 - File diff/files endpoints require GitHub connection
 - Users without GitHub connection see "GitHub authentication required" errors
-- No `GITHUB_TOKEN` fallback is being used in API routes
+- If `GITHUB_TOKEN`/`GH_TOKEN` is configured, fallback access works only when user token is missing
 
 #### Important Notes
 

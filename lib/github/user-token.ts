@@ -19,7 +19,12 @@ import type { NextRequest } from 'next/server'
  * @param req - Optional NextRequest for API routes
  */
 export async function getUserGitHubToken(req?: NextRequest): Promise<string | null> {
-  const fallbackToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || null
+  const rawFallbackToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || null
+  const fallbackToken =
+    rawFallbackToken &&
+    !['your_github_personal_access_token', 'replace_with_real_token'].includes(rawFallbackToken.trim().toLowerCase())
+      ? rawFallbackToken
+      : null
 
   // Get session from request if provided, otherwise use server session
   const session = req ? await getSessionFromReq(req) : await getServerSession()

@@ -12,10 +12,10 @@ export function redactSensitiveInfo(message: string): string {
     /ANTHROPIC_API_KEY[=\s]*["']?(sk-ant-[a-zA-Z0-9_-]{20,})/gi,
     // OpenAI API keys (sk-...)
     /OPENAI_API_KEY[=\s]*["']?([sk-][a-zA-Z0-9_-]{20,})/gi,
-    // GitHub tokens (ghp_, gho_, ghu_, ghs_, ghr_)
-    /GITHUB_TOKEN[=\s]*["']?([gh][phosr]_[a-zA-Z0-9_]{20,})/gi,
+    // GitHub tokens (classic + fine-grained)
+    /GITHUB_TOKEN[=\s]*["']?((?:github_pat_[a-zA-Z0-9_]{20,}|gh[phosr]_[a-zA-Z0-9_]{20,}))/gi,
     // GitHub tokens in URLs (https://token:x-oauth-basic@github.com or https://token@github.com)
-    /https:\/\/(gh[phosr]_[a-zA-Z0-9_]{20,})(?::x-oauth-basic)?@github\.com/gi,
+    /https:\/\/((?:github_pat_[a-zA-Z0-9_]{20,}|gh[phosr]_[a-zA-Z0-9_]{20,}))(?::x-oauth-basic)?@github\.com/gi,
     // Generic API key patterns
     /API_KEY[=\s]*["']?([a-zA-Z0-9_-]{20,})/gi,
     // Bearer tokens

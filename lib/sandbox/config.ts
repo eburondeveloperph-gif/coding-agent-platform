@@ -1,3 +1,28 @@
+const PLACEHOLDER_PREFIXES = ['your_', 'replace_']
+const PLACEHOLDER_EXACT_VALUES = new Set([
+  'your_vercel_api_token',
+  'your_team_id',
+  'your_sandbox_project_id',
+  'your_github_personal_access_token',
+])
+
+function hasConfiguredValue(value?: string | null): boolean {
+  if (!value) {
+    return false
+  }
+
+  const normalized = value.trim().toLowerCase()
+  if (!normalized) {
+    return false
+  }
+
+  if (PLACEHOLDER_EXACT_VALUES.has(normalized)) {
+    return false
+  }
+
+  return !PLACEHOLDER_PREFIXES.some((prefix) => normalized.startsWith(prefix))
+}
+
 export function validateEnvironmentVariables(
   selectedAgent: string = 'codemax',
   githubToken?: string | null,
@@ -58,20 +83,20 @@ export function validateEnvironmentVariables(
 
   // Check for GitHub token for private repositories
   // Use user's token if provided
-  if (!githubToken) {
+  if (!hasConfiguredValue(githubToken)) {
     errors.push('GitHub is required for repository access. Please connect your GitHub account.')
   }
 
   // Check for Orbit sandbox environment variables
-  if (!process.env.SANDBOX_VERCEL_TEAM_ID) {
+  if (!hasConfiguredValue(process.env.SANDBOX_VERCEL_TEAM_ID)) {
     errors.push('SANDBOX_VERCEL_TEAM_ID is required for sandbox creation')
   }
 
-  if (!process.env.SANDBOX_VERCEL_PROJECT_ID) {
+  if (!hasConfiguredValue(process.env.SANDBOX_VERCEL_PROJECT_ID)) {
     errors.push('SANDBOX_VERCEL_PROJECT_ID is required for sandbox creation')
   }
 
-  if (!process.env.SANDBOX_VERCEL_TOKEN) {
+  if (!hasConfiguredValue(process.env.SANDBOX_VERCEL_TOKEN)) {
     errors.push('SANDBOX_VERCEL_TOKEN is required for sandbox creation')
   }
 
