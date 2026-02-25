@@ -1,5 +1,5 @@
 import { atomWithStorage } from 'jotai/utils'
-import { atomFamily } from 'jotai/utils'
+import { atomFamily } from 'jotai-family'
 
 interface GitHubOwner {
   login: string

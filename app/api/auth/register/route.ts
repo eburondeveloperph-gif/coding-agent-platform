@@ -35,59 +35,89 @@ function buildAvatarUrl(seed: string): string {
   return `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(seed)}`
 }
 
+function classifyAuthError(error: unknown): { status: number; message: string } {
+  if (error instanceof Error) {
+    if (
+      error.message.includes('POSTGRES_URL environment variable is required') ||
+      error.message.includes('Missing JWE secret')
+    ) {
+      return { status: 503, message: 'Authentication service is not configured' }
+    }
+  }
+
+  const dbCode =
+    typeof error === 'object' && error !== null && 'code' in error ? String((error as { code?: unknown }).code) : ''
+
+  if (dbCode === '23505') {
+    return { status: 409, message: 'Email is already registered' }
+  }
+
+  if (dbCode === '42P01' || dbCode === '42703') {
+    return { status: 503, message: 'Authentication database schema is out of date' }
+  }
+
+  return { status: 500, message: 'Failed to register account' }
+}
+
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null)
-  const parsed = registerSchema.safeParse(body)
+  try {
+    const body = await req.json().catch(() => null)
+    const parsed = registerSchema.safeParse(body)
 
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid registration data' }, { status: 400 })
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid registration data' }, { status: 400 })
+    }
+
+    const normalizedEmail = normalizeEmail(parsed.data.email)
+    const username = parsed.data.username?.trim() || deriveUsername(normalizedEmail)
+    const name = parsed.data.name?.trim() || username
+
+    const existing = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.provider, 'local'), eq(users.externalId, normalizedEmail)))
+      .limit(1)
+
+    if (existing.length > 0) {
+      return NextResponse.json({ error: 'Email is already registered' }, { status: 409 })
+    }
+
+    const now = new Date()
+    const userId = nanoid()
+    const avatarUrl = buildAvatarUrl(username)
+    const passwordHash = hashPassword(parsed.data.password)
+
+    await db.insert(users).values({
+      id: userId,
+      provider: 'local',
+      externalId: normalizedEmail,
+      accessToken: 'local-auth',
+      refreshToken: null,
+      scope: 'local',
+      passwordHash,
+      username,
+      email: normalizedEmail,
+      name,
+      avatarUrl,
+      createdAt: now,
+      updatedAt: now,
+      lastLoginAt: now,
+    })
+
+    const session = createLocalSession({
+      id: userId,
+      username,
+      email: normalizedEmail,
+      name,
+      avatarUrl,
+    })
+
+    const response = NextResponse.json({ success: true }, { status: 201 })
+    await saveSession(response, session)
+    return response
+  } catch (error) {
+    console.error('Register route failed', error)
+    const classified = classifyAuthError(error)
+    return NextResponse.json({ error: classified.message }, { status: classified.status })
   }
-
-  const normalizedEmail = normalizeEmail(parsed.data.email)
-  const username = parsed.data.username?.trim() || deriveUsername(normalizedEmail)
-  const name = parsed.data.name?.trim() || username
-
-  const existing = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(and(eq(users.provider, 'local'), eq(users.externalId, normalizedEmail)))
-    .limit(1)
-
-  if (existing.length > 0) {
-    return NextResponse.json({ error: 'Email is already registered' }, { status: 409 })
-  }
-
-  const now = new Date()
-  const userId = nanoid()
-  const avatarUrl = buildAvatarUrl(username)
-  const passwordHash = hashPassword(parsed.data.password)
-
-  await db.insert(users).values({
-    id: userId,
-    provider: 'local',
-    externalId: normalizedEmail,
-    accessToken: 'local-auth',
-    refreshToken: null,
-    scope: 'local',
-    passwordHash,
-    username,
-    email: normalizedEmail,
-    name,
-    avatarUrl,
-    createdAt: now,
-    updatedAt: now,
-    lastLoginAt: now,
-  })
-
-  const session = createLocalSession({
-    id: userId,
-    username,
-    email: normalizedEmail,
-    name,
-    avatarUrl,
-  })
-
-  const response = NextResponse.json({ success: true }, { status: 201 })
-  await saveSession(response, session)
-  return response
 }

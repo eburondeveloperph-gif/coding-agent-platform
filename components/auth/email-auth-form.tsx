@@ -21,8 +21,19 @@ async function submitAuth(path: '/api/auth/login' | '/api/auth/register', payloa
   })
 
   if (!response.ok) {
-    const data = (await response.json().catch(() => ({}))) as { error?: string }
-    throw new Error(data.error || 'Authentication failed')
+    const responseText = await response.text()
+    let message = 'Authentication failed'
+
+    if (responseText) {
+      try {
+        const data = JSON.parse(responseText) as { error?: string }
+        message = data.error || message
+      } catch {
+        message = responseText
+      }
+    }
+
+    throw new Error(message)
   }
 }
 

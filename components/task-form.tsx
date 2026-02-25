@@ -329,14 +329,14 @@ export function TaskForm({
   return (
     <div className="w-full max-w-2xl">
       <div className="text-center mb-8">
-        <div className="mx-auto mb-6 h-[300px] w-[300px] max-h-[70vw] max-w-[70vw] overflow-hidden rounded-full border border-border/50">
+        <div className="mx-auto mb-6 w-[180px] max-w-[55vw]">
           <Image
-            src="/apple-touch-icon.png"
+            src="/icon-eburon.svg"
             alt={`${BRAND_NAME} logo`}
-            width={300}
-            height={300}
+            width={180}
+            height={180}
             priority
-            className="h-full w-full object-cover"
+            className="h-auto w-full"
           />
         </div>
         <h1 className="text-4xl font-bold mb-4">{BRAND_NAME}</h1>

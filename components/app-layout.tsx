@@ -10,6 +10,8 @@ import Link from 'next/link'
 import { getSidebarWidth, setSidebarWidth, getSidebarOpen, setSidebarOpen } from '@/lib/utils/cookies'
 import { nanoid } from 'nanoid'
 import { ConnectorsProvider } from '@/components/connectors-provider'
+import { useAtomValue } from 'jotai'
+import { sessionAtom, sessionInitializedAtom } from '@/lib/atoms/session'
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -92,6 +94,8 @@ function SidebarLoader({ width }: { width: number }) {
 }
 
 export function AppLayout({ children, initialSidebarWidth, initialSidebarOpen, initialIsMobile }: AppLayoutProps) {
+  const session = useAtomValue(sessionAtom)
+  const sessionInitialized = useAtomValue(sessionInitializedAtom)
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
   // Initialize sidebar state based on user agent and preferences
@@ -144,19 +148,50 @@ export function AppLayout({ children, initialSidebarWidth, initialSidebarOpen, i
     setHasMounted(true)
   }, [isDesktop, initialIsMobile, initialSidebarOpen])
 
-  // Fetch tasks on component mount
+  const fetchTasks = useCallback(async () => {
+    if (!sessionInitialized) {
+      return
+    }
+
+    if (!session?.user?.id) {
+      setTasks([])
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      const response = await fetch('/api/tasks')
+      if (response.ok) {
+        const data = await response.json()
+        setTasks(data.tasks)
+      } else if (response.status === 401) {
+        // Session expired - treat as signed out.
+        setTasks([])
+      }
+    } catch (error) {
+      console.error('Error fetching tasks:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [sessionInitialized, session?.user?.id])
+
+  // Fetch tasks when session state changes.
   useEffect(() => {
     fetchTasks()
-  }, [])
+  }, [fetchTasks])
 
-  // Poll for task updates every 5 seconds
+  // Poll for task updates every 5 seconds for authenticated users only.
   useEffect(() => {
+    if (!sessionInitialized || !session?.user?.id) {
+      return
+    }
+
     const interval = setInterval(() => {
       fetchTasks()
     }, 5000)
 
     return () => clearInterval(interval)
-  }, [])
+  }, [fetchTasks, sessionInitialized, session?.user?.id])
 
   const toggleSidebar = useCallback(() => {
     updateSidebarOpen(!isSidebarOpen)
@@ -189,23 +224,6 @@ export function AppLayout({ children, initialSidebarWidth, initialSidebarOpen, i
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [toggleSidebar])
-
-  const fetchTasks = async () => {
-    try {
-      const response = await fetch('/api/tasks')
-      if (response.ok) {
-        const data = await response.json()
-        setTasks(data.tasks)
-      } else if (response.status === 401) {
-        // User is not authenticated, show empty tasks
-        setTasks([])
-      }
-    } catch (error) {
-      console.error('Error fetching tasks:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const addTaskOptimistically = (taskData: {
     prompt: string
