@@ -19,11 +19,13 @@ import type { NextRequest } from 'next/server'
  * @param req - Optional NextRequest for API routes
  */
 export async function getUserGitHubToken(req?: NextRequest): Promise<string | null> {
+  const fallbackToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || null
+
   // Get session from request if provided, otherwise use server session
   const session = req ? await getSessionFromReq(req) : await getServerSession()
 
   if (!session?.user?.id) {
-    return null
+    return fallbackToken
   }
 
   try {
@@ -49,9 +51,9 @@ export async function getUserGitHubToken(req?: NextRequest): Promise<string | nu
       return decrypt(user[0].accessToken)
     }
 
-    return null
+    return fallbackToken
   } catch (error) {
     console.error('Error fetching user GitHub token:', error)
-    return null
+    return fallbackToken
   }
 }

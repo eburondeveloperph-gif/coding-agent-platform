@@ -7,6 +7,32 @@ import { connectors } from '@/lib/db/schema'
 
 type Connector = typeof connectors.$inferSelect
 
+const CLOUD_MODEL_SUFFIX = ':cloud'
+const LOCALHOST_HOSTNAMES = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1'])
+
+function isCloudModel(model: string): boolean {
+  const normalized = model.trim().toLowerCase()
+  return normalized.endsWith(CLOUD_MODEL_SUFFIX) || normalized === 'openmax'
+}
+
+function normalizeCloudModel(model: string): string {
+  const trimmedModel = model.trim()
+  if (trimmedModel.toLowerCase() === 'openmax') {
+    return 'minimax-m2.5'
+  }
+
+  return trimmedModel.replace(/:cloud$/i, '')
+}
+
+function isLocalhostBaseUrl(baseUrl: string): boolean {
+  try {
+    const parsed = new URL(baseUrl)
+    return LOCALHOST_HOSTNAMES.has(parsed.hostname.toLowerCase())
+  } catch {
+    return false
+  }
+}
+
 // Helper function to run command and log it in project directory
 async function runAndLogCommand(sandbox: Sandbox, command: string, args: string[], logger: TaskLogger) {
   const fullCommand = args.length > 0 ? `${command} ${args.join(' ')}` : command
@@ -76,7 +102,9 @@ export async function executeCodexInSandbox(
     }
 
     // Use selectedModel if provided, otherwise fall back to default.
-    const modelToUse = selectedModel || 'openai/gpt-4o'
+    const selectedModelToUse = selectedModel || 'openai/gpt-4o'
+    const isCloudBackedModel = isCloudModel(selectedModelToUse)
+    const modelToUse = isCloudBackedModel ? normalizeCloudModel(selectedModelToUse) : selectedModelToUse
 
     // Set up authentication - we'll use API key method since we're in a sandbox
     if (!process.env.AI_GATEWAY_API_KEY) {
@@ -89,9 +117,7 @@ export async function executeCodexInSandbox(
     }
 
     const apiKey = process.env.AI_GATEWAY_API_KEY.trim()
-    const isOpenAIKey = apiKey?.startsWith('sk-')
     const isVercelKey = apiKey?.startsWith('vck_')
-    const isMiniMaxCloudModel = modelToUse.toLowerCase().includes('minimax') || modelToUse.includes(':cloud') || modelToUse.toLowerCase() === 'openmax'
 
     if (!apiKey) {
       await logger.error('AI Gateway API key not found')
@@ -143,7 +169,7 @@ export async function executeCodexInSandbox(
 
     // Create configuration file based on model and API key type.
     let configToml
-    if (isVercelKey) {
+    if (isVercelKey && !isCloudBackedModel) {
       // Use Vercel AI Gateway configuration for vck_ keys
       // Based on the curl example, it uses /chat/completions endpoint, not responses
       configToml = `model = "${modelToUse}"
@@ -161,11 +187,37 @@ log_requests = true
 `
     } else {
       // For non-Vercel keys we use OpenAI-compatible configuration.
-      // Cloud models can override the base URL through CLOUD_MODEL_BASE_URL.
-      const cloudModelBaseUrl = process.env.CLOUD_MODEL_BASE_URL || 'http://localhost:11434/v1'
+      // Cloud-backed models must use CLOUD_MODEL_BASE_URL.
+      const cloudModelBaseUrl = process.env.CLOUD_MODEL_BASE_URL?.trim()
+
+      if (isCloudBackedModel && !cloudModelBaseUrl) {
+        return {
+          success: false,
+          error:
+            'CLOUD_MODEL_BASE_URL is required for cloud models. Please set it to your Olyama cloud OpenAI-compatible /v1 endpoint.',
+          cliName: 'codex',
+          changesDetected: false,
+        }
+      }
+
+      if (
+        process.env.NODE_ENV === 'production' &&
+        isCloudBackedModel &&
+        cloudModelBaseUrl &&
+        isLocalhostBaseUrl(cloudModelBaseUrl)
+      ) {
+        return {
+          success: false,
+          error:
+            'CLOUD_MODEL_BASE_URL points to localhost in production. Set it to your Olyama cloud OpenAI-compatible /v1 endpoint.',
+          cliName: 'codex',
+          changesDetected: false,
+        }
+      }
+
       const openAIBaseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
-      const baseUrl = isMiniMaxCloudModel ? cloudModelBaseUrl : openAIBaseUrl
-      const wireApi = isMiniMaxCloudModel ? 'chat' : 'responses'
+      const baseUrl = isCloudBackedModel ? cloudModelBaseUrl! : openAIBaseUrl
+      const wireApi = isCloudBackedModel ? 'chat' : 'responses'
 
       configToml = `model = "${modelToUse}"
 model_provider = "openai"
