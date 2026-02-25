@@ -32,6 +32,14 @@ interface VercelProjectsResponse {
   projects?: VercelProject[]
 }
 
+interface VercelTeam {
+  id: string
+}
+
+interface VercelTeamsResponse {
+  teams?: VercelTeam[]
+}
+
 function hasConfiguredValue(value?: string | null): value is string {
   if (!value) {
     return false
@@ -108,6 +116,20 @@ async function resolveAccountId(token: string): Promise<string> {
   return accountId
 }
 
+async function resolveDefaultTeamId(token: string, fallbackAccountId: string): Promise<string> {
+  try {
+    const teamsResponse = await vercelRequest<VercelTeamsResponse>(token, '/v2/teams')
+    const firstTeamId = teamsResponse.teams?.[0]?.id
+    if (firstTeamId) {
+      return firstTeamId
+    }
+  } catch {
+    // Fallback to account ID for personal scopes when teams listing is unavailable.
+  }
+
+  return fallbackAccountId
+}
+
 async function projectExists(token: string, accountId: string, projectId: string): Promise<boolean> {
   try {
     await vercelRequest(token, `/v9/projects/${encodeURIComponent(projectId)}?teamId=${encodeURIComponent(accountId)}`)
@@ -158,14 +180,17 @@ async function main() {
     throw new Error('Set SANDBOX_VERCEL_TOKEN (or VERCEL_TOKEN) in .env.production before running sandbox bootstrap.')
   }
 
+  const accountId = await resolveAccountId(token)
   const configuredTeamId = process.env.SANDBOX_VERCEL_TEAM_ID || ''
-  const accountId = hasConfiguredValue(configuredTeamId) ? configuredTeamId.trim() : await resolveAccountId(token)
+  const teamId = hasConfiguredValue(configuredTeamId)
+    ? configuredTeamId.trim()
+    : await resolveDefaultTeamId(token, accountId)
 
   const configuredProjectId = process.env.SANDBOX_VERCEL_PROJECT_ID || ''
   let projectId = hasConfiguredValue(configuredProjectId) ? configuredProjectId.trim() : ''
 
   if (projectId) {
-    const exists = await projectExists(token, accountId, projectId)
+    const exists = await projectExists(token, teamId, projectId)
     if (!exists) {
       projectId = ''
     }
@@ -174,13 +199,13 @@ async function main() {
   if (!projectId) {
     const brandName = process.env.NEXT_PUBLIC_BRAND_NAME || 'Eburon AI'
     const projectName = `${slugify(brandName)}-sandbox`
-    const existingProject = await findProjectByName(token, accountId, projectName)
-    projectId = existingProject?.id || (await createProject(token, accountId, projectName))
+    const existingProject = await findProjectByName(token, teamId, projectName)
+    projectId = existingProject?.id || (await createProject(token, teamId, projectName))
   }
 
   let envContent = await readEnvFile()
   envContent = upsertEnvValue(envContent, 'SANDBOX_VERCEL_TOKEN', token)
-  envContent = upsertEnvValue(envContent, 'SANDBOX_VERCEL_TEAM_ID', accountId)
+  envContent = upsertEnvValue(envContent, 'SANDBOX_VERCEL_TEAM_ID', teamId)
   envContent = upsertEnvValue(envContent, 'SANDBOX_VERCEL_PROJECT_ID', projectId)
 
   const finalContent = envContent.endsWith('\n') ? envContent : `${envContent}\n`
