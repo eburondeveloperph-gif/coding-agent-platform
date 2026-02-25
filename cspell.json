@@ -1,0 +1,20 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "eburon",
+    "openmax",
+    "codemax",
+    "eburonmax",
+    "aigateway",
+    "rmcp",
+    "eburonpassword"
+  ],
+  "ignorePaths": [
+    "node_modules/**",
+    ".next/**",
+    "out/**",
+    "build/**",
+    "pnpm-lock.yaml"
+  ]
+}

@@ -1,0 +1,119 @@
+{
+  "id": "openmax-1.0",
+  "name": "Eburon AI",
+  "updated_at": "2026-02-24",
+  "skills": [
+    {
+      "id": "codegen_fast",
+      "name": "Fast Codegen",
+      "category": "skills",
+      "prompt_template": "Generate an implementation for: {{goal}}",
+      "requires_approval": false,
+      "agent_hint": "terminal"
+    },
+    {
+      "id": "repo_refactor",
+      "name": "Repo Refactor",
+      "category": "skills",
+      "prompt_template": "Refactor repository code for: {{goal}}",
+      "requires_approval": true,
+      "agent_hint": "echo"
+    },
+    {
+      "id": "review_patch",
+      "name": "Review Patch",
+      "category": "skills",
+      "prompt_template": "Review patch for regressions and risks: {{goal}}",
+      "requires_approval": false,
+      "agent_hint": "vision"
+    }
+  ],
+  "apps_softwares": [
+    {
+      "id": "github",
+      "name": "GitHub",
+      "category": "apps_softwares",
+      "prompt_template": "Open GitHub workflow for: {{goal}}",
+      "requires_approval": false,
+      "agent_hint": "codemax"
+    }
+  ],
+  "service_integrations": [
+    {
+      "id": "ollama_local",
+      "name": "Ollama Localhost",
+      "category": "service_integrations",
+      "prompt_template": "Run local model action for: {{goal}}",
+      "requires_approval": false,
+      "agent_hint": "echo"
+    }
+  ],
+  "agent_integration_tools": [
+    {
+      "id": "codemax_orchestrator",
+      "name": "codemax",
+      "category": "agent_integration_tools",
+      "prompt_template": "Orchestrate the plan and dispatch route tags for: {{goal}}",
+      "requires_approval": true,
+      "agent_hint": "codemax"
+    },
+    {
+      "id": "terminal_codegen",
+      "name": "terminal",
+      "category": "agent_integration_tools",
+      "prompt_template": "Use Gemini CLI to produce fast code for: {{goal}}",
+      "requires_approval": false,
+      "agent_hint": "terminal"
+    },
+    {
+      "id": "echo_local_repo",
+      "name": "echo",
+      "category": "agent_integration_tools",
+      "prompt_template": "Run local Ollama repo work for: {{goal}}",
+      "requires_approval": false,
+      "agent_hint": "echo"
+    },
+    {
+      "id": "vision_local_review",
+      "name": "vision",
+      "category": "agent_integration_tools",
+      "prompt_template": "Run local Ollama code review for: {{goal}}",
+      "requires_approval": false,
+      "agent_hint": "vision"
+    },
+    {
+      "id": "orbit_cloud_reasoning",
+      "name": "orbit",
+      "category": "agent_integration_tools",
+      "prompt_template": "Use cloud reasoning for: {{goal}}",
+      "requires_approval": false,
+      "agent_hint": "orbit"
+    }
+  ],
+  "ai_models_apis": [
+    {
+      "id": "cloud_codemax_gpt51",
+      "name": "Codemax GPT-5.1",
+      "category": "ai_models_apis",
+      "prompt_template": "Use Codemax GPT-5.1 for: {{goal}}",
+      "requires_approval": false,
+      "agent_hint": "codemax"
+    },
+    {
+      "id": "cloud_terminal_gemini25",
+      "name": "Terminal Gemini 2.5 Pro",
+      "category": "ai_models_apis",
+      "prompt_template": "Use Terminal Gemini 2.5 Pro for: {{goal}}",
+      "requires_approval": false,
+      "agent_hint": "terminal"
+    },
+    {
+      "id": "local_echo_qwen25",
+      "name": "Echo Qwen2.5 Coder",
+      "category": "ai_models_apis",
+      "prompt_template": "Use local Qwen coder for: {{goal}}",
+      "requires_approval": false,
+      "agent_hint": "echo"
+    }
+  ]
+}
